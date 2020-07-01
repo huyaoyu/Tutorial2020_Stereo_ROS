@@ -1,0 +1,12 @@
+*.jpg
+*.png
+*.pp3
+*.dat
+*.pyc
+sps-stereo/include
+sps-stereo/output
+stereo_sparse_depth_fusion/include
+stereo_sparse_depth_fusion/results
+*.code-workspace
+CMakeLists.txt
+
