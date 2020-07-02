@@ -12,29 +12,11 @@
 #include <opencv2/core/eigen.hpp>
 
 #include "Filesystem.hpp"
-#include "JSONHelper.hpp"
 #include "NumPyIO.hpp"
 
 #include "stereo_utils.hpp"
 
 using namespace stereo_utils;
-using JSON = nlohmann::json;
-
-std::shared_ptr<JSON> stereo_utils::read_json( const std::string &fn ) {
-    std::shared_ptr<JSON> pJson ( new JSON );
-
-    std::ifstream ifs(fn);
-
-    if ( !ifs.good() ) {
-        std::stringstream ss;
-        ss << fn << " not good. ";
-        throw std::runtime_error( ss.str() );
-    }
-
-    ifs >> *pJson;
-
-    return pJson;
-}
 
 void stereo_utils::convert_eigen_matrix_2_mat( 
 	const Eigen::MatrixXf &e, 

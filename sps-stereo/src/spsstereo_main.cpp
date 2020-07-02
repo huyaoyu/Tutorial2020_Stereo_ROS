@@ -15,8 +15,6 @@
     along with this program.  If not, see <http://www.gnu.org/licenses/>.
 */
 
-#define TINYPLY_IMPLEMENTATION
-
 #include <iostream>
 #include <fstream>
 #include <memory>
@@ -255,6 +253,8 @@ void process( const CaseDescription &cd ) {
 		// Save the difference as an image.
 		std::string diffImgFn = outDir + "/Diff.png";
 		su::save_float_image_self_normalize( diffImgFn, diff );
+
+		std::cout << "Difference image saved to " << diffImgFn << "\n";
 	}
 
 	// Generate PLY point cloud file if Q matrix is present.
@@ -277,6 +277,8 @@ void process( const CaseDescription &cd ) {
 		su::write_ply_with_color(plyFn, 
 			predDispOffs, leftImage, 
 			Q, flagFlip, distanceLimit, flagBinary);
+
+		std::cout << "Point cloud saved to " << plyFn << "\n";
 	}
 }
 
