@@ -12,28 +12,44 @@
 #include <opencv2/core/eigen.hpp>
 
 #include "Filesystem.hpp"
+#include "JSONHelper.hpp"
 #include "NumPyIO.hpp"
 
-void convert_eigen_matrix_2_mat( 
+#include "stereo_utils.hpp"
+
+using namespace stereo_utils;
+using JSON = nlohmann::json;
+
+std::shared_ptr<JSON> stereo_utils::read_json( const std::string &fn ) {
+    std::shared_ptr<JSON> pJson ( new JSON );
+
+    std::ifstream ifs(fn);
+
+    if ( !ifs.good() ) {
+        std::stringstream ss;
+        ss << fn << " not good. ";
+        throw std::runtime_error( ss.str() );
+    }
+
+    ifs >> *pJson;
+
+    return pJson;
+}
+
+void stereo_utils::convert_eigen_matrix_2_mat( 
 	const Eigen::MatrixXf &e, 
 	cv::Mat &m ) {
 	cv::eigen2cv( e, m );
 }
 
-void load_true_disparity(const std::string &fn, cv::Mat &trueDisp) {
+void stereo_utils::load_true_disparity(const std::string &fn, cv::Mat &trueDisp) {
 	Eigen::MatrixXf eTrueDisp;
 	read_npy_2_eigen_matrix(fn, eTrueDisp);
 	convert_eigen_matrix_2_mat( eTrueDisp, trueDisp );
 }
 
-struct DiffStat {
-	float mean;
-	float minVal;
-	float maxVal;
-};
-
-static DiffStat compute_diff_statistics( 
-	const cv::Mat &diff, const cv::Mat &mask=cv::Mat() ) {
+DiffStat stereo_utils::compute_diff_statistics( 
+	const cv::Mat &diff, const cv::Mat &mask ) {
 
 	if ( 1 != diff.channels() ) {
 		throw std::runtime_error("diff must be 1 channel. ");
@@ -107,7 +123,7 @@ static DiffStat compute_diff_statistics(
 	return ds;
 }
 
-void compare_with_true_disparity( 
+void stereo_utils::compare_with_true_disparity( 
 	const cv::Mat &trueDisp, 
 	const cv::Mat &predDisp, 
 	cv::Mat &diff ) {
@@ -131,7 +147,7 @@ void compare_with_true_disparity(
 			  << "diff max = "  << ds.maxVal << ". \n";
 }
 
-void save_float_image_self_normalize( 
+void stereo_utils::save_float_image_self_normalize( 
 	const std::string fn, 
 	const cv::Mat &img ) {
 	

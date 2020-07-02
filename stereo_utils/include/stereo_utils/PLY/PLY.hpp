@@ -16,6 +16,9 @@
 
 #include "tinyply.h"
 
+namespace stereo_utils
+{
+
 /**
  * Write a PLY file based on the disparity and color image. The reprojection matrix is Q which
  * is 4x4 and row-major.
@@ -205,5 +208,7 @@ static void write_ply_with_color(const std::string& fn, const cv::Mat& disp, con
 
     plyFile.write( ofs, binary );
 }
+
+} // namespace stereo_utils
 
 #endif //STEREO_UTILS_PLY_HPP

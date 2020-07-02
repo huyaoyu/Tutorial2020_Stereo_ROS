@@ -11,20 +11,11 @@
 
 using JSON = nlohmann::json;
 
-static std::shared_ptr<JSON> read_json( const std::string &fn ) {
-    std::shared_ptr<JSON> pJson ( new JSON );
+namespace stereo_utils
+{
 
-    std::ifstream ifs(fn);
+std::shared_ptr<JSON> read_json( const std::string &fn );
 
-    if ( !ifs.good() ) {
-        std::stringstream ss;
-        ss << fn << " not good. ";
-        throw std::runtime_error( ss.str() );
-    }
-
-    ifs >> *pJson;
-
-    return pJson;
-}
+} // namespace stereo_utils
 
 #endif //JSONHELPER_HPP

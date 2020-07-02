@@ -13,6 +13,9 @@
 #include <cnpy.h>
 #include <Eigen/Dense>
 
+namespace stereo_utils
+{
+
 template < typename rT >
 void write_depth_map_2_npy( const std::string &fn,
         const Eigen::MatrixX<rT> &mat,
@@ -80,5 +83,7 @@ void read_npy_2_eigen_matrix( const std::string &fn,
     // Convert the row major matrix to column major?
     mat = temp;
 }
+
+} // namespace stereo_utils
 
 #endif //NUMPYIO_HPP

@@ -10,6 +10,9 @@
 
 #include "stereo_utils.hpp"
 
+namespace stereo_utils
+{
+
 void convert_eigen_matrix_2_mat( 
 	const Eigen::MatrixXf &e, 
 	cv::Mat &m );
@@ -36,5 +39,7 @@ void compare_with_true_disparity(
 void save_float_image_self_normalize( 
 	const std::string fn, 
 	const cv::Mat &img );
+
+} // namespace stereo_utils
 
 #endif // __STEREO_UTILS__STEREO_UTILS_HPP__

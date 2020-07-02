@@ -10,6 +10,9 @@
 #include <boost/filesystem.hpp>
 #include <boost/algorithm/string.hpp>
 
+namespace stereo_utils
+{
+
 std::vector<std::string> get_file_parts(const std::string& path) {
     boost::filesystem::path p(path);
 
@@ -54,5 +57,7 @@ bool test_file( const std::string &fn ) {
 
     return boost::filesystem::is_regular_file(p);
 }
+
+} // namespace stereo_utils
 
 #endif //FILESYSTEM_HPP

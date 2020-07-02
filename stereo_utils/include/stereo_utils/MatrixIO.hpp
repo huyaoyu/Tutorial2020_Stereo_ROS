@@ -15,6 +15,9 @@
 
 #include <Eigen/Dense>
 
+namespace stereo_utils
+{
+
 template < typename rT >
 void read_matrix( const std::string& fn, int rows, int cols, const std::string& delimiter,
         Eigen::MatrixX<rT>& mat ) {
@@ -92,5 +95,7 @@ void write_matrix( const std::string &fn,
 
     ofs.close();
 }
+
+} // namespace stereo_utils
 
 #endif //MATRIXIO_HPP

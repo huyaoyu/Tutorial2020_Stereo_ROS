@@ -42,6 +42,7 @@
 #include "defParameter.h"
 
 using JSON = nlohmann::json;
+namespace su = stereo_utils;
 
 struct CaseDescription {
 	std::string name   = "";
@@ -224,7 +225,7 @@ void process( const CaseDescription &cd ) {
 	cv::Mat segmentBoundaryImage;
 	makeSegmentBoundaryImage(leftImage, segmentImage, boundaryLabels, segmentBoundaryImage);
 
-	test_directory(outDir);
+	su::test_directory(outDir);
 
 	std::string outputBaseFilename           = outDir + "/res";
 	std::string outputDisparityImageFilename = outputBaseFilename + "_left_disparity.png";
@@ -246,10 +247,10 @@ void process( const CaseDescription &cd ) {
 	// Compare with the trud disparity.
 	if ( cd.fnD != "" ) {
 		cv::Mat trueDisp;
-		load_true_disparity(cd.fnD, trueDisp);
+		su::load_true_disparity(cd.fnD, trueDisp);
 
 		cv::Mat diff;
-		compare_with_true_disparity(trueDisp, predDisp, diff);
+		su::compare_with_true_disparity(trueDisp, predDisp, diff);
 
 		// // Save the true disparity as image for debug.
 		// std::string trueDispFn = outDir + "/TrueDisp.png";
@@ -257,13 +258,13 @@ void process( const CaseDescription &cd ) {
 
 		// Save the difference as an image.
 		std::string diffImgFn = outDir + "/Diff.png";
-		save_float_image_self_normalize( diffImgFn, diff );
+		su::save_float_image_self_normalize( diffImgFn, diff );
 	}
 
 	if ( cd.fnQ != "" ) {
 		// Load the Q matrix.
 		Eigen::MatrixXf Q;
-		read_matrix(cd.fnQ, 4, 4, " ", Q);
+		su::read_matrix(cd.fnQ, 4, 4, " ", Q);
 
 		Q(0, 3) *= cd.qFactor;
 		Q(1, 3) *= cd.qFactor;
@@ -274,7 +275,7 @@ void process( const CaseDescription &cd ) {
 		const bool flagBinary = true;
 
 		cv::Mat predDispOffs = predDisp + cd.dOffs;
-		write_ply_with_color(plyFn, predDispOffs, leftImage, Q, flagFlip, 20, flagBinary);
+		su::write_ply_with_color(plyFn, predDispOffs, leftImage, Q, flagFlip, 20, flagBinary);
 	}
 }
 
@@ -285,7 +286,7 @@ int main(int argc, char* argv[]) {
 	}
 
 	// Read the JSON file.
-	std::shared_ptr<JSON> pJSON = read_json(argv[1]);
+	std::shared_ptr<JSON> pJSON = su::read_json(argv[1]);
 	auto& cases = (*pJSON)["cases"];
 
 	const int N = cases.size();
