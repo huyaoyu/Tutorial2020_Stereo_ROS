@@ -19,6 +19,7 @@
 
 #include <iostream>
 #include <fstream>
+#include <memory>
 #include <string>
 #include <vector>
 
@@ -30,13 +31,8 @@
 #include <opencv2/opencv.hpp>
 #include <opencv2/core/eigen.hpp>
 
+// Headers from package stereo_utils.
 #include <stereo_utils/stereo_utils.hpp>
-#include <stereo_utils/Filesystem.hpp>
-#include <stereo_utils/JSONHelper.hpp>
-#include <stereo_utils/MatrixIO.hpp>
-#include <stereo_utils/NumPyIO.hpp>
-#include <stereo_utils/PLY/PLY.hpp>
-#include <stereo_utils/SimpleTime.hpp>
 
 #include "SPSStereo.h"
 #include "defParameter.h"
@@ -45,14 +41,14 @@ using JSON = nlohmann::json;
 namespace su = stereo_utils;
 
 struct CaseDescription {
-	std::string name   = "";
-	std::string fn0    = "";
-	std::string fn1    = "";
-	std::string fnD    = "";
-	std::string outDir = "";
-	std::string fnQ    = "";
-	float qFactor      = 1.0f;
-	float dOffs        = 0.0f;
+	std::string name   = "";   // Name of the test case.
+	std::string fn0    = "";   // Filename of image Ref.
+	std::string fn1    = "";   // Filename of image Tst.
+	std::string fnD    = "";   // Filename of the true disparity map.
+	std::string outDir = "";   // Output directory.
+	std::string fnQ    = "";   // Filename of the Q matrix.
+	float qFactor      = 1.0f; // Scale factor of Q.
+	float dOffs        = 0.0f; // Disparity offset. Non-zero for Middlebury dataset. Zero for other datasets.
 };
 
 void makeSegmentBoundaryImage(const cv::Mat & inputImage,
@@ -202,7 +198,6 @@ void process( const CaseDescription &cd ) {
     std::string rightImageFilename = cd.fn1;
     std::string outDir = cd.outDir + "/" + cd.name;
 
-	std::cout << "Procesing : " << leftImageFilename << ". ";
 	cv::Mat leftImage = cv::imread(leftImageFilename, cv::IMREAD_UNCHANGED);
 	cv::Mat rightImage = cv::imread(rightImageFilename, cv::IMREAD_UNCHANGED);
 	std::cout << "Image size (HxW): " << leftImage.rows << "x" << leftImage.cols << "\n";
@@ -220,7 +215,7 @@ void process( const CaseDescription &cd ) {
 
 	QUICK_TIME_START(teCompute)
 	sps.compute(superpixelTotal, leftImage, rightImage, segmentImage, disparityImage, disparityPlaneParameters, boundaryLabels);
-	QUICK_TIME_SHOW(teCompute, "sps-stereo compute")
+	QUICK_TIME_SHOW(teCompute, "sps-stereo compute()")
 
 	cv::Mat segmentBoundaryImage;
 	makeSegmentBoundaryImage(leftImage, segmentImage, boundaryLabels, segmentBoundaryImage);
@@ -240,11 +235,12 @@ void process( const CaseDescription &cd ) {
 	writeDisparityPlaneFile(disparityPlaneParameters, outputDisparityPlaneFilename);
 	writeBoundaryLabelFile(boundaryLabels, outputBoundaryLabelFilename);
 
+	// Convert disparityImage to floating point dispariy map with the true scale.
 	cv::Mat predDisp;
 	disparityImage.convertTo(predDisp, CV_32FC1);
 	predDisp /= 256.f;
 
-	// Compare with the trud disparity.
+	// Compare with the true disparity.
 	if ( cd.fnD != "" ) {
 		cv::Mat trueDisp;
 		su::load_true_disparity(cd.fnD, trueDisp);
@@ -252,7 +248,7 @@ void process( const CaseDescription &cd ) {
 		cv::Mat diff;
 		su::compare_with_true_disparity(trueDisp, predDisp, diff);
 
-		// // Save the true disparity as image for debug.
+		// // Save the true disparity as an image for debug.
 		// std::string trueDispFn = outDir + "/TrueDisp.png";
 		// cv::imwrite(trueDispFn, trueDisp);
 
@@ -261,21 +257,26 @@ void process( const CaseDescription &cd ) {
 		su::save_float_image_self_normalize( diffImgFn, diff );
 	}
 
+	// Generate PLY point cloud file if Q matrix is present.
 	if ( cd.fnQ != "" ) {
 		// Load the Q matrix.
 		Eigen::MatrixXf Q;
 		su::read_matrix(cd.fnQ, 4, 4, " ", Q);
 
+		// Update the Q matrix according to the scale factor.
 		Q(0, 3) *= cd.qFactor;
 		Q(1, 3) *= cd.qFactor;
 		Q(2, 3) *= cd.qFactor;
 
-		std::string plyFn = outDir + "/Cloud.ply";
-		const bool flagFlip   = true;
-		const bool flagBinary = true;
-
-		cv::Mat predDispOffs = predDisp + cd.dOffs;
-		su::write_ply_with_color(plyFn, predDispOffs, leftImage, Q, flagFlip, 20, flagBinary);
+		// Write the PLY file with RGB info.
+		std::string plyFn         = outDir + "/Cloud.ply";
+		const bool flagFlip       = true; // Flip the point cloud so that the y-axis is upwards.
+		const bool flagBinary     = true; // Write binary PLY files.
+		const float distanceLimit = 20.f; // All points with depth greater than this value will be ignored.
+		cv::Mat predDispOffs      = predDisp + cd.dOffs; // This is required by Middlebury dataset. dOffs will be zero for other dataset.
+		su::write_ply_with_color(plyFn, 
+			predDispOffs, leftImage, 
+			Q, flagFlip, distanceLimit, flagBinary);
 	}
 }
 
@@ -288,7 +289,6 @@ int main(int argc, char* argv[]) {
 	// Read the JSON file.
 	std::shared_ptr<JSON> pJSON = su::read_json(argv[1]);
 	auto& cases = (*pJSON)["cases"];
-
 	const int N = cases.size();
 
 	// Process all the cases.
@@ -297,7 +297,7 @@ int main(int argc, char* argv[]) {
 		cd.fn0  = cases[i]["fn0"]; // Filename of image 0.
 		cd.fn1  = cases[i]["fn1"]; // Filename of image 1.
 
-		// True disparity, if exists.
+		// True disparity if exists.
 		if ( cases[i].find("fnD") != cases[i].end() ) {
 			cd.fnD = cases[i]["fnD"];
 		} else {
@@ -307,6 +307,7 @@ int main(int argc, char* argv[]) {
 		cd.outDir = cases[i]["outDir"]; // Output directory.
 		cd.name   = cases[i]["name"];   // Case name.
 
+		// Q matrix if exists.
 		if ( cases[i].find("fnQ") != cases[i].end() ) {
 			cd.fnQ     = cases[i]["fnQ"];
 			cd.qFactor = cases[i]["QF"];
@@ -317,6 +318,7 @@ int main(int argc, char* argv[]) {
 			cd.dOffs   = 0.0f;
 		}
 
+		std::cout << "\n========== Procesing " << cd.name << ". ==========\n\n";
 		process( cd );
 	}
     

@@ -8,6 +8,13 @@
 
 #include <opencv2/opencv.hpp>
 
+#include "Filesystem.hpp"
+#include "JSONHelper.hpp"
+#include "MatrixIO.hpp"
+#include "NumPyIO.hpp"
+#include "PLY/PLY.hpp"
+#include "SimpleTime.hpp"
+
 #include "stereo_utils.hpp"
 
 namespace stereo_utils
