@@ -323,6 +323,8 @@ int main(int argc, char* argv[]) {
 		std::cout << "\n========== Procesing " << cd.name << ". ==========\n\n";
 		process( cd );
 	}
+
+	std::cout << "SPS-Stereo done. \n";
     
     return 0;
 }
