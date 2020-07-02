@@ -7,7 +7,15 @@
 #include "stereo_sdf/SGMStereo.h"
 #include "stereo_sdf/utils.h"
 
+#include <Eigen/Dense>
+
+// Headers from package stereo_utils.
+#include <stereo_utils/stereo_utils.hpp>
+
 using namespace std;
+
+using JSON = nlohmann::json;
+namespace su = stereo_utils;
 
 /* -------------------------- SET THESE PARAMETERS --------------------------- */
 /* stereo options */
@@ -28,6 +36,22 @@ double SAMPLING_FRACTION   = 0.50;
 
 /* disparity scaling factor (256 for KITTI) */
 double SCALING_FACTOR      = 256.0;
+
+/* --------------------------------------------------------------------------- */
+
+/* ------------ Type definition for interfacing the JSON file. --------------- */
+
+struct CaseDescription {
+	std::string name   = "";   // Name of the test case.
+	std::string fn0    = "";   // Filename of image Ref.
+	std::string fn1    = "";   // Filename of image Tst.
+	std::string fnD    = "";   // Filename of the true disparity map.
+	std::string outDir = "";   // Output directory.
+	std::string fnQ    = "";   // Filename of the Q matrix.
+	float qFactor      = 1.0f; // Scale factor of Q.
+	float dOffs        = 0.0f; // Disparity offset. Non-zero for Middlebury dataset. Zero for other datasets.
+    float distLimit    = 20.f; // The distance limit for point cloud generation.
+};
 
 /* --------------------------------------------------------------------------- */
 
@@ -76,14 +100,50 @@ void displayMinMax(cv::Mat array)
     std::cout << "Minimum: " << min << " | Maximum: " << max << std::endl;
 }
 
-int main(int argc, char** argv)
-{
+static void save_ply( 
+    const std::string &fn,
+    const Eigen::MatrixXf &Q,
+    const cv::Mat &dispFloat, 
+    const cv::Mat &color,
+    float distLimit=20.f,
+    float dOffs=0.f ) {
+
+    cv::Mat dispFloat32;
+    dispFloat.convertTo(dispFloat32, CV_32FC1);
+
+    const bool flagFlip       = true; // Flip the point cloud so that the y-axis is upwards.
+    const bool flagBinary     = true; // Write binary PLY files.
+    const float distanceLimit = 20.f; // All points with depth greater than this value will be ignored.
+    cv::Mat predDispOffs      = dispFloat32 + dOffs; // This is required by Middlebury dataset. dOffs will be zero for other dataset.
+    su::write_ply_with_color(fn, 
+        predDispOffs, color, 
+        Q, flagFlip, distanceLimit, flagBinary);
+}
+
+static void process( const CaseDescription &cd ) {
     /* input and output directories */
-    std::string repo_dir = argv[1];
-    std::string left_image_uri = repo_dir + "imgs/stereo_left.png";
-    std::string right_image_uri = repo_dir + "imgs/stereo_right.png";
-    std::string left_depth_uri = repo_dir + "imgs/gt_disparity.png";
-    std::string save_dir = repo_dir + "results/";
+    // std::string repo_dir = argv[1];
+    // std::string left_image_uri = repo_dir + "imgs/stereo_left.png";
+    // std::string right_image_uri = repo_dir + "imgs/stereo_right.png";
+    // std::string left_depth_uri = repo_dir + "imgs/gt_disparity.png";
+    // std::string save_dir = repo_dir + "results/";
+
+    std::string left_image_uri  = cd.fn0;
+    std::string right_image_uri = cd.fn1;
+    std::string left_depth_uri  = cd.fnD;
+    std::string save_dir        = cd.outDir + "/";
+
+    su::test_directory(save_dir);
+
+    Eigen::MatrixXf Q;
+    if ( cd.fnQ != "" ) {
+        su::read_matrix(cd.fnQ, 4, 4, " ", Q);
+
+		// Update the Q matrix according to the scale factor.
+		Q(0, 3) *= cd.qFactor;
+		Q(1, 3) *= cd.qFactor;
+		Q(2, 3) *= cd.qFactor;
+    }
 
     Utils utilities;
 
@@ -149,6 +209,15 @@ int main(int argc, char** argv)
     cv::Mat masked_depth;
     disp_image.copyTo(masked_depth, sample_mask);
 
+    // Save PLY file.
+    if ( cd.fnQ != "" ) {
+        std::string plyFn = save_dir + "Cloud_SGM.ply";
+        save_ply(plyFn, Q, 
+            disp_SGM, left_image_clr, 
+            cd.distLimit, cd.dOffs );
+        std::cout << "Point cloud saved to " << plyFn << "\n";
+    }
+
     /* EVALUATION B: USE SPARSE LIDAR POINTS FOR NAIVE FUSION */
     std::cout << "\n{EVALUATION B:} -- NAIVE LIDAR FUSION -- " << std::endl;
     cv::Mat disparity_image_sl_naive;
@@ -175,6 +244,15 @@ int main(int argc, char** argv)
                                 average_error_nf,
                                 error_image_nf, sample_mask);
     std::cout << "{NAIVE FUSION} avg error: " << average_error_nf << std::endl;
+
+    // Save PLY file.
+    if ( cd.fnQ != "" ) {
+        std::string plyFn = save_dir + "Cloud_Naive.ply";
+        save_ply(plyFn, Q, 
+            disp_NF, left_image_clr, 
+            cd.distLimit, cd.dOffs );
+        std::cout << "Point cloud saved to " << plyFn << "\n";
+    }
 
     /*EVALUATION C: USE DIFFUSION BASED METHOD */
     std::cout << "\n{EVALUATION C:} -- DIFFUSION BASED -- " << std::endl;
@@ -204,6 +282,15 @@ int main(int argc, char** argv)
                                 sample_mask);
     std::cout << "{DB} avg error: " << average_error_db << std::endl;
 
+    // Save PLY file.
+    if ( cd.fnQ != "" ) {
+        std::string plyFn = save_dir + "Cloud_Diffusion.ply";
+        save_ply(plyFn, Q, 
+            disp_DB, left_image_clr, 
+            cd.distLimit, cd.dOffs );
+        std::cout << "Point cloud saved to " << plyFn << "\n";
+    }
+
     /*EVALUATION D: USE BASIC BILATERAL COST UPDATE */
     std::cout << "\n{EVALUATION D:} -- NEIGHBORHOOD SUPPORT -- " << std::endl;
     cv::Mat disparity_image_ns;
@@ -231,6 +318,59 @@ int main(int argc, char** argv)
                                 error_image_ns,
                                 sample_mask);
     std::cout << "{NS} avg error: " << average_error_ns << std::endl;
+
+    // Save PLY file.
+    if ( cd.fnQ != "" ) {
+        std::string plyFn = save_dir + "Cloud_Neighbor.ply";
+        save_ply(plyFn, Q, 
+            disp_NS, left_image_clr, 
+            cd.distLimit, cd.dOffs );
+        std::cout << "Point cloud saved to " << plyFn << "\n";
+    }
+}
+
+int main(int argc, char** argv)
+{
+    if ( argc < 2 ) {
+		std::cerr << "Must specify the input JSON file. \n";
+		throw std::runtime_error("Must specify the input JSON file. ");
+	}
+
+	// Read the JSON file.
+	std::shared_ptr<JSON> pJSON = su::read_json(argv[1]);
+	auto& cases = (*pJSON)["cases"];
+	const int N = cases.size();
+
+	// Process all the cases.
+	for ( int i = 0; i < N; ++i ) {
+		auto cd = CaseDescription();
+		cd.fn0  = cases[i]["fn0"]; // Filename of image 0.
+		cd.fn1  = cases[i]["fn1"]; // Filename of image 1.
+
+		// True disparity if exists.
+		cd.fnD = cases[i]["fnD"];
+
+		cd.outDir = cases[i]["outDir"]; // Output directory.
+		cd.name   = cases[i]["name"];   // Case name.
+
+		// Q matrix if exists.
+		if ( cases[i].find("fnQ") != cases[i].end() ) {
+			cd.fnQ       = cases[i]["fnQ"];
+			cd.qFactor   = cases[i]["QF"];
+			cd.dOffs     = cases[i]["dOffs"];
+            cd.distLimit = cases[i]["distLimit"];
+		} else {
+			cd.fnQ       = "";
+			cd.qFactor   = 1.f;
+			cd.dOffs     = 0.f;
+            cd.distLimit = 20.f;
+		}
+
+		std::cout << "\n========== Procesing " << cd.name << ". ==========\n\n";
+		process( cd );
+	}
+
+	std::cout << "SPS-Stereo done. \n";
 
     return 0;
 }

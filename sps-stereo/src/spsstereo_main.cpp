@@ -191,7 +191,7 @@ void writeBoundaryLabelFile(const std::vector< std::vector<int> >& boundaryLabel
 	outputFileStream.close();
 }
 
-void process( const CaseDescription &cd ) {
+static void process( const CaseDescription &cd ) {
 	std::string leftImageFilename  = cd.fn0;
     std::string rightImageFilename = cd.fn1;
     std::string outDir = cd.outDir + "/" + cd.name;

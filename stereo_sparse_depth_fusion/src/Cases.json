@@ -1,0 +1,15 @@
+{
+    "cases": [
+        {
+            "fn0": "../../SampleData/KITTI/stereo_left.png", 
+            "fn1": "../../SampleData/KITTI/stereo_right.png", 
+            "fnD": "../../SampleData/KITTI/gt_disparity.png",
+            "name": "KITTI",
+            "outDir": "../results",
+            "fnQ": "../../SampleData/KITTI/Q.dat",
+            "QF": 1.0,
+            "dOffs": 0.0,
+            "distLimit": 100.0
+        }
+    ]
+}
