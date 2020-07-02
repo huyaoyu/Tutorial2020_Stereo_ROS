@@ -2,10 +2,7 @@
 
 echo "$0"
 
-../../../devel/lib/sps-stereo/sps-stereo \
-    ../../../SampleData/im0.png \
-    ../../../SampleData/im1.png \
-    ../output
+../../../devel/lib/sps-stereo/sps-stereo Cases.json
 
 echo "$0 done."
 
