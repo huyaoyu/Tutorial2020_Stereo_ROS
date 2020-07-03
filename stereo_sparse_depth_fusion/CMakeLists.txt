@@ -17,6 +17,7 @@ find_package(
 ## System dependencies are found with CMake's conventions
 # find_package(Boost REQUIRED COMPONENTS system)
 
+set(Eigen3_DIR "../../ThirdParties/eigen-install/share/eigen3/cmake")
 FIND_PACKAGE(Eigen3 REQUIRED NO_MODULE)
 
 find_package(OpenCV REQUIRED)

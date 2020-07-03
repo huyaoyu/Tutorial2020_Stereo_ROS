@@ -30,6 +30,7 @@ find_package(catkin REQUIRED COMPONENTS
 # message(STATUS "LIB_BOOST_SYSTEM=${LIB_BOOST_SYSTEM}")
 # message(STATUS "LIB_BOOST_PROGRAM_OPTIONS=${LIB_BOOST_PROGRAM_OPTIONS}")
 
+set(Eigen3_DIR "../../ThirdParties/eigen-install/share/eigen3/cmake")
 FIND_PACKAGE(Eigen3 REQUIRED NO_MODULE)
 
 find_package(OpenCV REQUIRED)
