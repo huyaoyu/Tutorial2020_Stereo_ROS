@@ -5,10 +5,8 @@
 *.pyc
 *.npy
 *.pfm
-sps-stereo/include
 sps-stereo/output
 sps-stereo/results
-stereo_sparse_depth_fusion/include
 stereo_sparse_depth_fusion/results
 *.code-workspace
 CMakeLists.txt
