@@ -28,7 +28,8 @@ message(STATUS "EIGEN3_INCLUDE_DIR = ${EIGEN3_INCLUDE_DIR}")
 
 find_package(OpenCV REQUIRED)
 
-FIND_LIBRARY( LIB_CNPY NAMES cnpy )
+set(CNPY_ROOT "../../ThirdParties/cnpy-install")
+FIND_LIBRARY( LIB_CNPY NAMES cnpy PATHS "${CNPY_ROOT}/lib" NO_DEFAULT_PATH )
 message(STATUS "LIB_CNPY=${LIB_CNPY}")
 
 ## Uncomment this if the package has a setup.py. This macro ensures
@@ -135,6 +136,7 @@ include_directories(
   include/${PROJECT_NAME}/
   ${catkin_INCLUDE_DIRS}
   ${OpenCV_INCLUDE_DIRS}
+  ${CNPY_ROOT}/include
 )
 
 ## Declare a C++ library
