@@ -32,6 +32,8 @@ ENDIF(OPENMP_FOUND)
 
 find_package(PNG REQUIRED)
 
+set(CNPY_ROOT "../../ThirdParties/cnpy-install")
+
 ## Uncomment this if the package has a setup.py. This macro ensures
 ## modules and global scripts declared therein get installed
 ## See http://ros.org/doc/api/catkin/html/user_guide/setup_dot_py.html
@@ -135,6 +137,7 @@ include
 ${catkin_INCLUDE_DIRS}
 ${OpenCV_INCLUDE_DIRS}
 ${PNG_INCLUDE_DIRS}
+${CNPY_ROOT}/include
 )
 
 ## Declare a C++ library

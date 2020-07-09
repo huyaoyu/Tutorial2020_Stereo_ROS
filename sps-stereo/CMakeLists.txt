@@ -35,6 +35,7 @@ FIND_PACKAGE(Eigen3 REQUIRED NO_MODULE)
 
 find_package(OpenCV REQUIRED)
 
+set(CNPY_ROOT "../../ThirdParties/cnpy-install")
 # FIND_LIBRARY( LIB_CNPY NAMES cnpy )
 # message(STATUS "LIB_CNPY=${LIB_CNPY}")
 
@@ -140,6 +141,7 @@ include_directories(
 # include
   ${catkin_INCLUDE_DIRS}
   ${OpenCV_INCLUDE_DIRS}
+  ${CNPY_ROOT}/include
 )
 
 ## Declare a C++ library
