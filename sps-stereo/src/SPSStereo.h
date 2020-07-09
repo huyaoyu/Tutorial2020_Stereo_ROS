@@ -21,6 +21,8 @@
 #include <stack>
 #include <opencv2/opencv.hpp>
 
+#include <stereo_utils/Common.hpp>
+
 class SPSStereo {
 public:
 	SPSStereo();
@@ -245,4 +247,7 @@ private:
 	unsigned char* boundaryFlagImage_;
 	std::vector<Boundary> boundaries_;
 	std::vector< std::vector<int> > boundaryIndexMatrix_;
+
+public:
+	SGMParams sgmParams;
 };

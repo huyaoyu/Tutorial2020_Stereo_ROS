@@ -18,6 +18,7 @@
 #include <iostream>
 #include <fstream>
 #include <memory>
+#include <sstream>
 #include <string>
 #include <vector>
 
@@ -31,6 +32,7 @@
 
 // Headers from package stereo_utils.
 #include <stereo_utils/stereo_utils.hpp>
+#include <stereo_utils/Common.hpp>
 
 #include "SPSStereo.h"
 #include "defParameter.h"
@@ -47,6 +49,9 @@ struct CaseDescription {
 	std::string fnQ    = "";   // Filename of the Q matrix.
 	float qFactor      = 1.0f; // Scale factor of Q.
 	float dOffs        = 0.0f; // Disparity offset. Non-zero for Middlebury dataset. Zero for other datasets.
+	float distLimit    = 20.f; // The distance limit for point cloud generation.
+	
+	SGMParams sgmParams = SGMParams();
 };
 
 void makeSegmentBoundaryImage(const cv::Mat & inputImage,
@@ -194,7 +199,7 @@ void writeBoundaryLabelFile(const std::vector< std::vector<int> >& boundaryLabel
 static void process( const CaseDescription &cd ) {
 	std::string leftImageFilename  = cd.fn0;
     std::string rightImageFilename = cd.fn1;
-    std::string outDir = cd.outDir + "/" + cd.name;
+    std::string outDir = cd.outDir;
 
 	cv::Mat leftImage = cv::imread(leftImageFilename, cv::IMREAD_UNCHANGED);
 	cv::Mat rightImage = cv::imread(rightImageFilename, cv::IMREAD_UNCHANGED);
@@ -205,6 +210,8 @@ static void process( const CaseDescription &cd ) {
 	sps.setWeightParameter(lambda_pos, lambda_depth, lambda_bou, lambda_smo);
 	sps.setInlierThreshold(lambda_d);
 	sps.setPenaltyParameter(lambda_hinge, lambda_occ, lambda_pen);
+
+	sps.sgmParams = cd.sgmParams;
 
 	cv::Mat segmentImage;
 	cv::Mat disparityImage;
@@ -233,6 +240,14 @@ static void process( const CaseDescription &cd ) {
 	writeDisparityPlaneFile(disparityPlaneParameters, outputDisparityPlaneFilename);
 	writeBoundaryLabelFile(boundaryLabels, outputBoundaryLabelFilename);
 
+	// Save the segmentImage with self normalization.
+	{
+		cv::Mat segmentImageFloat;
+		segmentImage.convertTo(segmentImageFloat, CV_32FC1);
+		std::string outFn = outDir + "/SegFloat.png";
+		su::save_float_image_self_normalize( outFn, segmentImageFloat );
+	}
+
 	// Convert disparityImage to floating point dispariy map with the true scale.
 	cv::Mat predDisp;
 	disparityImage.convertTo(predDisp, CV_32FC1);
@@ -253,7 +268,6 @@ static void process( const CaseDescription &cd ) {
 		// Save the difference as an image.
 		std::string diffImgFn = outDir + "/Diff.png";
 		su::save_float_image_self_normalize( diffImgFn, diff );
-
 		std::cout << "Difference image saved to " << diffImgFn << "\n";
 	}
 
@@ -272,7 +286,7 @@ static void process( const CaseDescription &cd ) {
 		std::string plyFn         = outDir + "/Cloud.ply";
 		const bool flagFlip       = true; // Flip the point cloud so that the y-axis is upwards.
 		const bool flagBinary     = true; // Write binary PLY files.
-		const float distanceLimit = 20.f; // All points with depth greater than this value will be ignored.
+		const float distanceLimit = cd.distLimit; // All points with depth greater than this value will be ignored.
 		cv::Mat predDispOffs      = predDisp + cd.dOffs; // This is required by Middlebury dataset. dOffs will be zero for other dataset.
 		su::write_ply_with_color(plyFn, 
 			predDispOffs, leftImage, 
@@ -295,6 +309,9 @@ int main(int argc, char* argv[]) {
 
 	// Process all the cases.
 	for ( int i = 0; i < N; ++i ) {
+		if ( true != cases[i]["enable"] )
+            continue;
+
 		auto cd = CaseDescription();
 		cd.fn0  = cases[i]["fn0"]; // Filename of image 0.
 		cd.fn1  = cases[i]["fn1"]; // Filename of image 1.
@@ -306,8 +323,15 @@ int main(int argc, char* argv[]) {
 			cd.fnD = "";
 		}
 
-		cd.outDir = cases[i]["outDir"]; // Output directory.
+		// Global variable.
+		superpixelTotal = cases[i]["sps"]["superpixelTotal"];
+
 		cd.name   = cases[i]["name"];   // Case name.
+
+		std::stringstream ss;
+        std::string tempDir = cases[i]["outDir"]; // This strips the double quotes.
+        ss << tempDir << "/" << cd.name << "_" << superpixelTotal;
+        cd.outDir = ss.str(); // Output directory.
 
 		// Q matrix if exists.
 		if ( cases[i].find("fnQ") != cases[i].end() ) {
@@ -320,7 +344,12 @@ int main(int argc, char* argv[]) {
 			cd.dOffs   = 0.0f;
 		}
 
-		std::cout << "\n========== Procesing " << cd.name << ". ==========\n\n";
+		// SGM parameters.
+        cd.sgmParams.P1    = cases[i]["sgm"]["P1"];
+        cd.sgmParams.P2    = cases[i]["sgm"]["P2"];
+        cd.sgmParams.total = cases[i]["sgm"]["total"];
+
+		std::cout << "\n========== Procesing " << cd.name << " s" << superpixelTotal << ". ==========\n\n";
 		process( cd );
 	}
 

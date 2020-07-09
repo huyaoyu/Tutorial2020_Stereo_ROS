@@ -200,6 +200,10 @@ void SPSStereo::setLabImage(const cv::Mat & leftImage) {
 
 void SPSStereo::computeInitialDisparityImage(const cv::Mat& leftImage, const cv::Mat & rightImage) {
 	SGMStereo sgm;
+
+	sgm.setDisparityTotal( sgmParams.total );
+	sgm.setSmoothnessCostParameters( sgmParams.P1, sgmParams.P2 );
+
 	sgm.compute(leftImage, rightImage, initialDisparityImage_);
 }
 

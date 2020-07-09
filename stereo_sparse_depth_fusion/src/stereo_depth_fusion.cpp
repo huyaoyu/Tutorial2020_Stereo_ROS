@@ -1,9 +1,12 @@
 #include <stdio.h>
-#include <ctime>
-#include <iostream>
-#include <fstream>
 #include <cstdlib>
+#include <ctime>
+#include <fstream>
 #include <dirent.h>
+#include <iostream>
+#include <sstream>
+#include <string>
+
 #include "stereo_sdf/SGMStereo.h"
 #include "stereo_sdf/utils.h"
 
@@ -11,6 +14,7 @@
 
 // Headers from package stereo_utils.
 #include <stereo_utils/stereo_utils.hpp>
+#include <stereo_utils/Common.hpp>
 
 using namespace std;
 
@@ -42,15 +46,18 @@ double SCALING_FACTOR      = 256.0;
 /* ------------ Type definition for interfacing the JSON file. --------------- */
 
 struct CaseDescription {
-	std::string name   = "";   // Name of the test case.
-	std::string fn0    = "";   // Filename of image Ref.
-	std::string fn1    = "";   // Filename of image Tst.
-	std::string fnD    = "";   // Filename of the true disparity map.
-	std::string outDir = "";   // Output directory.
-	std::string fnQ    = "";   // Filename of the Q matrix.
-	float qFactor      = 1.0f; // Scale factor of Q.
-	float dOffs        = 0.0f; // Disparity offset. Non-zero for Middlebury dataset. Zero for other datasets.
-    float distLimit    = 20.f; // The distance limit for point cloud generation.
+	std::string name    = "";   // Name of the test case.
+	std::string fn0     = "";   // Filename of image Ref.
+	std::string fn1     = "";   // Filename of image Tst.
+	std::string fnD     = "";   // Filename of the true disparity map.
+	std::string outDir  = "";   // Output directory.
+	std::string fnQ     = "";   // Filename of the Q matrix.
+	float qFactor       = 1.0f; // Scale factor of Q.
+	float dOffs         = 0.0f; // Disparity offset. Non-zero for Middlebury dataset. Zero for other datasets.
+    float distLimit     = 20.f; // The distance limit for point cloud generation.
+    double gtSampleFrac = 0.5;  // Ground truth sampling option.
+
+    SGMParams sgmParams = SGMParams();
 };
 
 /* --------------------------------------------------------------------------- */
@@ -62,7 +69,8 @@ void SemiGlobalMatching(const cv::Mat &leftImage,
                         const std::string cameraParamFile,
                         cv::Mat depthImage,
                         cv::Mat weightImg,
-                        int FUSE_FLAG)
+                        int FUSE_FLAG,
+                        const SGMParams &sgmParams)
 {
     png::image<png::rgb_pixel> leftImageSGM, rightImageSGM;
     Utils utilities;
@@ -78,6 +86,13 @@ void SemiGlobalMatching(const cv::Mat &leftImage,
     }
     float* dispImageFloat = (float*)malloc(width*height*sizeof(float));
     SGMStereo sgm;
+
+    // Configure the SGM method.
+    std::cout << "P1 = " << sgmParams.P1 << ", "
+              << "P2 = " << sgmParams.P2 << ". \n";
+    sgm.setSmoothnessCostParameters( sgmParams.P1, sgmParams.P2 );
+    sgm.setDisparityTotal( sgmParams.total );
+
     cv::Mat leftImageGray;
     cv::cvtColor(leftImage, leftImageGray, CV_RGB2GRAY);
     sgm.compute(leftImageSGM,
@@ -174,7 +189,8 @@ static void process( const CaseDescription &cd ) {
                        "no_params_needed",
                        cv::Mat(),
                        cv::Mat(),
-                       VOLUME_UPDATE_NONE);
+                       VOLUME_UPDATE_NONE,
+                       cd.sgmParams);
     if (SAVE_IMAGES) {
         std::string save_file_name = + "sgm_default.png";
         std::string save_url = save_dir + save_file_name;
@@ -197,9 +213,13 @@ static void process( const CaseDescription &cd ) {
     std::cout << "{SGM} avg error: " << average_error_sgm << std::endl;
 
     cv::Mat sample_mask;
+    // utilities.generateRandomSamplingMask(disp_image,
+    //                                      sample_mask,
+    //                                      SAMPLING_FRACTION);
     utilities.generateRandomSamplingMask(disp_image,
                                          sample_mask,
-                                         SAMPLING_FRACTION);
+                                         cd.gtSampleFrac);
+
     if (SAVE_IMAGES) {
         std::string save_file_name = "sparse_mask.png";
         std::string save_url = save_dir + save_file_name;
@@ -228,7 +248,8 @@ static void process( const CaseDescription &cd ) {
                        "no_params_needed",
                        masked_depth,
                        cv::Mat(),
-                       VOLUME_UPDATE_NAIVE);
+                       VOLUME_UPDATE_NAIVE,
+                       cd.sgmParams);
     if (SAVE_IMAGES) {
         std::string save_file_name = "fuse_naive.png";
         std::string save_url = save_dir + save_file_name;
@@ -264,7 +285,8 @@ static void process( const CaseDescription &cd ) {
                        "no_params_needed",
                        masked_depth,
                        cv::Mat(),
-                       VOLUME_UPDATE_DIFFB);
+                       VOLUME_UPDATE_DIFFB, 
+                       cd.sgmParams);
     if (SAVE_IMAGES) {
         std::string save_file_name = "fuse_diffusionbased.png";
         std::string save_url = save_dir + save_file_name;
@@ -301,7 +323,8 @@ static void process( const CaseDescription &cd ) {
                        "no_params_needed",
                        masked_depth,
                        cv::Mat(),
-                       VOLUME_UPDATE_NEIGH);
+                       VOLUME_UPDATE_NEIGH, 
+                       cd.sgmParams);
     if (SAVE_IMAGES) {
         std::string save_file_name = "fuse_neighborhoodsupport.png";
         std::string save_url = save_dir + save_file_name;
@@ -343,6 +366,9 @@ int main(int argc, char** argv)
 
 	// Process all the cases.
 	for ( int i = 0; i < N; ++i ) {
+        if ( true != cases[i]["enable"] )
+            continue;
+
 		auto cd = CaseDescription();
 		cd.fn0  = cases[i]["fn0"]; // Filename of image 0.
 		cd.fn1  = cases[i]["fn1"]; // Filename of image 1.
@@ -350,8 +376,13 @@ int main(int argc, char** argv)
 		// True disparity if exists.
 		cd.fnD = cases[i]["fnD"];
 
-		cd.outDir = cases[i]["outDir"]; // Output directory.
-		cd.name   = cases[i]["name"];   // Case name.
+		cd.name         = cases[i]["name"];         // Case name.
+        cd.gtSampleFrac = cases[i]["gtSampleFrac"]; // The true data sample fraction.
+
+        std::stringstream ss;
+        std::string tempDir = cases[i]["outDir"]; // This strips the double quotes.
+        ss << tempDir << "/" << cd.name << "_" << cd.gtSampleFrac;
+        cd.outDir = ss.str(); // Output directory.
 
 		// Q matrix if exists.
 		if ( cases[i].find("fnQ") != cases[i].end() ) {
@@ -366,7 +397,12 @@ int main(int argc, char** argv)
             cd.distLimit = 20.f;
 		}
 
-		std::cout << "\n========== Procesing " << cd.name << ". ==========\n\n";
+        // SGM parameters.
+        cd.sgmParams.P1    = cases[i]["sgm"]["P1"];
+        cd.sgmParams.P2    = cases[i]["sgm"]["P2"];
+        cd.sgmParams.total = cases[i]["sgm"]["total"];
+
+		std::cout << "\n========== Procesing " << cd.name << "_" << cd.gtSampleFrac << ". ==========\n\n";
 		process( cd );
 	}
 
