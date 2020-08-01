@@ -26,7 +26,7 @@ The original work provides 3 types of fusion between SGM and the sparse measurem
 2. Change the matching cost of the current pixel if there is a measurement at this pixel. Then update the neighoring pixel inside tha window size.
 3. Weigted interpolation of the sparse measurement to maximize the effective region.
 
-The original source code can be found [here]([https://](https://github.com/ShreyasSkandanS/stereo_sparse_depth_fusion)). ALL RIGHTS RESERVED TO THE ORIGINAL AUTHORS.
+The original source code can be found [here](https://github.com/ShreyasSkandanS/stereo_sparse_depth_fusion). ALL RIGHTS RESERVED TO THE ORIGINAL AUTHORS.
 
 # System set up
 
