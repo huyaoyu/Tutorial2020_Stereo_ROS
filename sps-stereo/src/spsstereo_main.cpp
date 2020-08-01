@@ -269,6 +269,11 @@ static void process( const CaseDescription &cd ) {
 		std::string diffImgFn = outDir + "/Diff.png";
 		su::save_float_image_self_normalize( diffImgFn, diff );
 		std::cout << "Difference image saved to " << diffImgFn << "\n";
+
+		// Save the prediction again.
+		std::string predImgFn = outDir + "/PredDisp.png";
+		su::save_float_image_self_normalize(predImgFn, predDisp);
+		std::cout << "Disparity prediction image saved again to " << predImgFn << "\n";
 	}
 
 	// Generate PLY point cloud file if Q matrix is present.
