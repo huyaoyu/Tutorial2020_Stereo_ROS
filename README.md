@@ -46,7 +46,7 @@ A desktop-full version of ROS compatible with the Ubuntu base system. Python3 su
 
 # Video
 
-Coming soon, stay tuned.
+Video is at [https://youtu.be/lwX5S0MIFzs](https://youtu.be/lwX5S0MIFzs).
 
 # Exercise
 
